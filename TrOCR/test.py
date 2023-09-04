@@ -6,12 +6,10 @@ import shutil
 import logging
 import pytesseract
 import pandas as pd
-from io import StringIO
-import PyQt5.QtCore as QtCore
 import matplotlib.pyplot as plt
 from PIL import Image, ImageEnhance
-import PyQt5.QtWidgets as QtWidgets
-from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal
+from PyQt5.QtCore import QRunnable, QThreadPool
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog
 
 # Log config to file
 logging.basicConfig(filename='debug.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -253,10 +251,64 @@ class OCRScan:
                 else:
                     log_and_print("No filtered text found.", level=logging.INFO)
 
+class Worker(QRunnable):
+    def __init__(self, func, *args, **kwargs):
+        super(Worker, self).__init__()
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def run(self):
+        self.func(*self.args, **self.kwargs)
+
+class MyOCRApp(QMainWindow):
+    def __init__(self, ocr_scan):
+        super(MyOCRApp, self).__init__()
+        self.ocr_scan = ocr_scan
+        self.threadpool = QThreadPool()
+
+        self.setWindowTitle("My OCR App")
+        self.setGeometry(200, 200, 400, 300)
+
+        layout = QVBoxLayout()
+
+        self.button1 = QPushButton('Choose Directory')
+        self.button1.clicked.connect(self.choose_directory)
+
+        layout.addWidget(self.button1)
+
+        central_widget = QWidget()
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
+
+    def choose_directory(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+        if directory:
+            worker = Worker(
+                self.ocr_scan.OCR_on_directory, 
+                directory, 
+                PATTERNS, 
+                SECTION_SIZE_PERCENTAGE, 
+                OVERLAP_PERCENTAGE
+            )
+            self.threadpool.start(worker)
+
+if __name__ == '__main__':
+    app = QApplication([])
+    
+    ocr_scan = OCRScan()
+    my_app = MyOCRApp(ocr_scan)
+
+    my_app.show()
+    app.exec_()
 
 def main():
+    app = QApplication([])
     ocr_scan = OCRScan()
-    ocr_scan.OCR_on_directory(INPUT_DIR, PATTERNS, SECTION_SIZE_PERCENTAGE, OVERLAP_PERCENTAGE)
+    my_app = MyOCRApp(ocr_scan)
+    my_app.show()
+    app.exec_()
+
 
 if __name__ == "__main__":
     main()
