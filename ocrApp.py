@@ -348,8 +348,10 @@ class OCRThread(QThread):
                 # Append "_Fehler" to the filename if no text is found
                 os.rename(image_path, os.path.join(directory, f"{os.path.splitext(os.path.basename(image_path))[0]}_Fehler.tif"))
 
+        # Get number of CPU cores
+        num_cores = os.cpu_count()
         # Use ThreadPoolExecutor to parallelize image processing
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
             executor.map(process_image, image_paths)
     
     def stopProcessing(self):
