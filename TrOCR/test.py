@@ -16,9 +16,9 @@ from PyQt5.QtWidgets import (
     QTextEdit,
 )
 import traceback
-from PIL import ImageFilter, ImageEnhance
-import cv2
 import numpy as np
+from PyQt5.QtWidgets import QApplication
+import argparse
 
 # Log config to file
 logging.basicConfig(
@@ -221,6 +221,11 @@ class OCRScan:
                 matches = re.findall(pattern, text)
                 matched_text.extend(matches)
             filtered_text = matched_text[0] if matched_text else None
+            # Output Format should be:
+            # xx-xxxxxx-xx-xx (if length is 15)
+            if filtered_text and len(filtered_text) == 15:
+                filtered_text = filtered_text.replace("-", "")
+                filtered_text = filtered_text[:2] + "-" + filtered_text[2:8] + "-" + filtered_text[8:10] + "-" + filtered_text[10:]
             return filtered_text
         except Exception as e:
             log_and_print(f"An error occurred: {e}", level=logging.ERROR)
@@ -346,18 +351,39 @@ class MyOCRApp(QMainWindow):
 
 
 def main():
-    # app = QApplication(sys.argv)
-    ocr_scan = OCRScan()
-    ocr_scan.OCR_on_directory(
-        INPUT_DIR,
-        patterns=PATTERNS,
-        section_size_percentage=SECTION_SIZE_PERCENTAGE,
-        overlap_percentage=OVERLAP_PERCENTAGE,
+    parser = argparse.ArgumentParser(description="OCR Script")
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Run the script in GUI mode (default is normal mode)",
     )
-    # my_app = MyOCRApp(ocr_scan)
-    # my_app.show()
-    # app.exec_()
+    parser.add_argument("--input", type=str, help="Input path for OCR")
+    args = parser.parse_args()
 
+    if args.gui:
+        app = QApplication(sys.argv)
+        ocr_scan = OCRScan()
+        if args.input:
+            ocr_scan.OCR_on_directory(
+                args.input,
+                patterns=PATTERNS,
+                section_size_percentage=SECTION_SIZE_PERCENTAGE,
+                overlap_percentage=OVERLAP_PERCENTAGE,
+            )
+        my_app = MyOCRApp(ocr_scan)
+        my_app.show()
+        app.exec_()
+    else:
+        if not args.input:
+            print("Please provide an input path using --input")
+            sys.exit(1)
+        ocr_scan = OCRScan()
+        ocr_scan.OCR_on_directory(
+            args.input,
+            patterns=PATTERNS,
+            section_size_percentage=SECTION_SIZE_PERCENTAGE,
+            overlap_percentage=OVERLAP_PERCENTAGE,
+        )
 
 if __name__ == "__main__":
     main()
