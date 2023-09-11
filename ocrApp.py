@@ -345,8 +345,9 @@ class OCRThread(QThread):
                 self.log_signal.emit(f"Filtered text: {filtered_text}", logging.INFO)
                 os.rename(image_path, os.path.join(directory, f"{filtered_text}.tif"))
             else:
-                self.log_signal.emit("No filtered text found.", logging.INFO)
-                os.rename(image_path, os.path.join(directory, "_Error.tif"))
+                self.log_signal.emit(f"No filtered text found in image: {image_path}", logging.WARNING)
+                # Append "_Fehler" to the filename if no text is found
+                os.rename(image_path, os.path.join(directory, f"{os.path.splitext(os.path.basename(image_path))[0]}_Fehler.tif"))
 
         # Use ThreadPoolExecutor to parallelize image processing
         with concurrent.futures.ThreadPoolExecutor() as executor:
