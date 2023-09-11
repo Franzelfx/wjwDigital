@@ -127,29 +127,19 @@ class OCRScan:
             log_and_print(f"An error occurred in worker: {e}", level=logging.ERROR)
             return None
 
-    def _postprocess(self, text_results, patterns):
+    def _postprocess(self, text, patterns):
         try:
-            for text in text_results if text_results is not None else []:
-                matched_text = []
-                for pattern in patterns:
-                    matches = re.findall(pattern, text)
-                    matched_text.extend(matches)
-                filtered_text = matched_text[0] if matched_text else None
-                # Output Format should be:
-                # xx-xxxxxx-xx-xx (if length is 15)
-                if filtered_text and len(filtered_text) == 13:
-                    filtered_text = filtered_text.replace("-", "")
-                    filtered_text = (
-                        filtered_text[:2]
-                        + "-"
-                        + filtered_text[2:8]
-                        + "-"
-                        + filtered_text[8:10]
-                        + "-"
-                        + filtered_text[10:]
-                    )
-                    return filtered_text
-            return None  # Return None if no matching pattern is found in any result
+            matched_text = []
+            for pattern in patterns:
+                matches = re.findall(pattern, text)
+                matched_text.extend(matches)
+            filtered_text = matched_text[0] if matched_text else None
+            # Output Format should be:
+            # xx-xxxxxx-xx-xx (if length is 13)
+            if filtered_text and len(filtered_text) == 13:
+                filtered_text = filtered_text.replace("-", "")
+                filtered_text = filtered_text[:2] + "-" + filtered_text[2:8] + "-" + filtered_text[8:10] + "-" + filtered_text[10:]
+            return filtered_text
         except Exception as e:
             log_and_print(f"An error occurred: {e}", level=logging.ERROR)
             return None
@@ -203,11 +193,12 @@ class OCRScan:
                         md_file
                     )
                     results.append(text)
-            # Postprocess the text
-            text = self._postprocess(text, PATTERNS)
             # Close the Markdown file
             md_file.close()
-
+            # Return the first non-empty or non-None result
+            for result in results:
+                if result:
+                    return result
         except Exception as e:
             log_and_print(f"An error occurred: {e}", level=logging.ERROR)
             return None
@@ -307,6 +298,13 @@ class OCRApplication(QtWidgets.QMainWindow):
             self.ocr_thread.start()
         else:
             self.logMessage("Please select a directory first.", logging.WARNING)
+    
+    def closeEvent(self, event):
+        # Ensure that the OCR thread is stopped when the app is closed
+        if hasattr(self, 'ocr_thread'):
+            self.ocr_thread.stopProcessing()
+            self.ocr_thread.wait()  # Wait for the thread to finish gracefully
+        event.accept()
 
     def ocrCompleted(self):
         self.logMessage("OCR process completed.", logging.INFO)
@@ -350,8 +348,12 @@ class OCRThread(QThread):
                 os.rename(image_path, os.path.join(directory, f"{os.path.splitext(os.path.basename(image_path))[0]}_Fehler.tif"))
 
         # Use ThreadPoolExecutor to parallelize image processing
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             executor.map(process_image, image_paths)
+    
+    def stopProcessing(self):
+        # Custom method to stop the processing gracefully
+        self.terminate()  # Terminate the thread
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
