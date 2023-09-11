@@ -7,4 +7,5 @@
 *.pdf
 *.log
 *.zip
+*venv*
 !requirements.txt

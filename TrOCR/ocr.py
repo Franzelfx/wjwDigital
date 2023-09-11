@@ -3,7 +3,6 @@ import os
 import sys
 import PIL
 import logging
-import traceback
 import pytesseract
 from PIL import Image
 
