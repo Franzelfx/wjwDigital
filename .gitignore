@@ -9,4 +9,5 @@
 *.zip
 venv
 __pycache__
+!image/*.png
 !requirements.txt

@@ -215,6 +215,7 @@ class OCRScan:
 import os
 import sys
 import logging
+import concurrent.futures
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -324,33 +325,32 @@ class OCRThread(QThread):
             self.ocr_on_directory(self.directory)
             self.completed_signal.emit()
         else:
-            # Emit the log_signal with two arguments (a string and an int)
             self.log_signal.emit("Directory not found.", logging.ERROR)
 
     def ocr_on_directory(self, directory):
         if not os.path.exists(directory):
-            # Emit the log_signal with two arguments (a string and an int)
             self.log_signal.emit(f"Directory not found: {directory}", logging.ERROR)
             return
 
         ocr_scan = OCRScan()
 
-        for filename in os.listdir(directory):
-            if filename.lower().endswith((".tif", ".tiff")):
-                input_path = os.path.join(directory, filename)
-                # Emit the log_signal with two arguments (a string and an int)
-                self.log_signal.emit(f"Starting OCR scan on file: {filename}", logging.INFO)
-                filtered_text = ocr_scan.ocr_on_image(input_path)
-                if filtered_text:
-                    # Emit the log_signal with two arguments (a string and an int)
-                    self.log_signal.emit(f"Filtered text: {filtered_text}", logging.INFO)
-                    # Rename the input file to the filtered text
-                    os.rename(input_path, os.path.join(directory, f"{filtered_text}.tif"))
-                else:
-                    # Emit the log_signal with two arguments (a string and an int)
-                    self.log_signal.emit("No filtered text found.", logging.INFO)
-                    # Rename the input file to indicate an error
-                    os.rename(input_path, os.path.join(directory, "_Error.tif"))
+        # Create a list of image paths to process
+        image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if filename.lower().endswith((".tif", ".tiff"))]
+
+        # Define a function for processing an image
+        def process_image(image_path):
+            self.log_signal.emit(f"Starting OCR scan on file: {image_path}", logging.INFO)
+            filtered_text = ocr_scan.ocr_on_image(image_path)
+            if filtered_text:
+                self.log_signal.emit(f"Filtered text: {filtered_text}", logging.INFO)
+                os.rename(image_path, os.path.join(directory, f"{filtered_text}.tif"))
+            else:
+                self.log_signal.emit("No filtered text found.", logging.INFO)
+                os.rename(image_path, os.path.join(directory, "_Error.tif"))
+
+        # Use ThreadPoolExecutor to parallelize image processing
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.map(process_image, image_paths)
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
