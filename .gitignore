@@ -7,5 +7,6 @@
 *.pdf
 *.log
 *.zip
-*venv*
+venv
+__pycache__
 !requirements.txt
