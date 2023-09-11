@@ -243,29 +243,15 @@ class OCRApplication(QtWidgets.QMainWindow):
 
         central_widget.setLayout(layout)
 
-    def load_logo_image(self):
-        # Determine the location of the logo image
-        if getattr(sys, 'frozen', False):
-            # When running as a bundled executable
-            base_path = sys._MEIPASS  # PyInstaller sets this attribute
-        else:
-            # When running in development mode
-            base_path = os.path.abspath(os.path.dirname(__file__))
-
-        logo_image_path = os.path.join(base_path, "image/logo.png")
-
-        if os.path.exists(logo_image_path):
-            pixmap = QPixmap(logo_image_path)
-            return pixmap
-        else:
-            return None
-
     def displayLogoImage(self):
-        pixmap = self.load_logo_image()
-
-        if pixmap:
+        logo_image_path = "logo.png"  # Use the relative path to the logo image
+        if os.path.exists(logo_image_path):
             logo_label = QtWidgets.QLabel(self)
-            logo_label.setPixmap(pixmap)
+            pixmap = QPixmap(logo_image_path)
+
+            scaled_pixmap = pixmap.scaled(600, 200, QtCore.Qt.KeepAspectRatio)
+
+            logo_label.setPixmap(scaled_pixmap)
             logo_label.setAlignment(QtCore.Qt.AlignCenter)
 
             central_widget = QtWidgets.QWidget(self)
