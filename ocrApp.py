@@ -243,15 +243,29 @@ class OCRApplication(QtWidgets.QMainWindow):
 
         central_widget.setLayout(layout)
 
-    def displayLogoImage(self):
-        logo_image_path = "./image/logo.png"  # Replace with the actual path to your image
+    def load_logo_image(self):
+        # Determine the location of the logo image
+        if getattr(sys, 'frozen', False):
+            # When running as a bundled executable
+            base_path = sys._MEIPASS  # PyInstaller sets this attribute
+        else:
+            # When running in development mode
+            base_path = os.path.abspath(os.path.dirname(__file__))
+
+        logo_image_path = os.path.join(base_path, "image/logo.png")
+
         if os.path.exists(logo_image_path):
-            logo_label = QtWidgets.QLabel(self)
             pixmap = QPixmap(logo_image_path)
+            return pixmap
+        else:
+            return None
 
-            scaled_pixmap = pixmap.scaled(600, 200, QtCore.Qt.KeepAspectRatio)
+    def displayLogoImage(self):
+        pixmap = self.load_logo_image()
 
-            logo_label.setPixmap(scaled_pixmap)
+        if pixmap:
+            logo_label = QtWidgets.QLabel(self)
+            logo_label.setPixmap(pixmap)
             logo_label.setAlignment(QtCore.Qt.AlignCenter)
 
             central_widget = QtWidgets.QWidget(self)
@@ -263,6 +277,7 @@ class OCRApplication(QtWidgets.QMainWindow):
 
             central_widget.setLayout(layout)
             self.setCentralWidget(central_widget)
+
 
     def initOCR(self):
         self.ocr_thread = OCRThread()
