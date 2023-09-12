@@ -1,0 +1,1 @@
+pyinstaller --onefile --name FFE-AI-OCR --add-data "logo.png:." --distpath ./docs/deploy/mac ocrApp.py

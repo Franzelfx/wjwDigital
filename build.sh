@@ -1,1 +1,0 @@
-pyinstaller --onefile --name FFE-AI-OCR --specfile ocrApp.py

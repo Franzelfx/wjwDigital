@@ -13,6 +13,14 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 PIL.Image.MAX_IMAGE_PIXELS = 933120000
 
 INPUT_FILE = "./MFLK_Ohne Hollerith TEST UHDE/11_000001_300 dpi/Scan_0002.tif"
@@ -244,7 +252,7 @@ class OCRApplication(QtWidgets.QMainWindow):
         central_widget.setLayout(layout)
 
     def displayLogoImage(self):
-        logo_image_path = "logo.png"  # Use the relative path to the logo image
+        logo_image_path = resource_path("logo.png")
         if os.path.exists(logo_image_path):
             logo_label = QtWidgets.QLabel(self)
             pixmap = QPixmap(logo_image_path)

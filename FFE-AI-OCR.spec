@@ -8,7 +8,7 @@ a = Analysis(
     ['ocrApp.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('logo.png', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -42,6 +42,3 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
-datas=[
-    ('/Users/FabianFranz/Development/Projects/wjwDigital/logo.png', '.'),
-],
