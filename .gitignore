@@ -3,6 +3,8 @@
 *.TIF
 *.png
 *.md
+!docs/*.md
+!docs/*.png
 *.csv
 *.pdf
 *.log
