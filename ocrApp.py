@@ -53,7 +53,7 @@ def log_and_print(message, level=logging.INFO, file_only=False, qt_text_edit=Non
         qt_text_edit.append(log_entry)
 
 # Auto-detect Tesseract path
-if sys.platform.startswith('win32'):
+if sys.platform.startswith('win64') or sys.platform.startswith('win32'):
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 elif sys.platform.startswith('darwin'):
     # For macOS, the path usually will be /usr/local/bin/tesseract if installed via brew
