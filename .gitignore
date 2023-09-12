@@ -9,6 +9,8 @@
 *.pdf
 *.log
 *.zip
+*.spec
+build
 venv
 __pycache__
 !logo.png
