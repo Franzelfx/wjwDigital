@@ -9,9 +9,10 @@
 *.pdf
 *.log
 *.zip
-*.spec
 build
 venv
+venv_win
+venv_linux
 __pycache__
 !logo.png
 !requirements.txt
