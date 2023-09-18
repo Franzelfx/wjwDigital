@@ -1,6 +1,17 @@
+altgraph==0.17.3
+colorama==0.4.6
+Lasagne @ git+https://github.com/Lasagne/Lasagne.git@61b1ad14d9960a2e20ff2f06ea3f30e81a21441e
+macholib==1.16.2
+numpy==1.26.0
+opencv-python-headless==4.8.0.76
 packaging==23.1
 Pillow==10.0.0
+pyinstaller==5.13.2
+pyinstaller-hooks-contrib==2023.8
 PyQt5==5.15.9
 PyQt5-Qt5==5.15.2
 PyQt5-sip==12.12.2
 pytesseract==0.3.10
+scipy==1.11.2
+six==1.16.0
+Theano==0.8.2
