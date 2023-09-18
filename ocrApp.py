@@ -40,8 +40,12 @@ class OCRThread(QThread):
         self.run_again_with_enhanced_image = run_again_with_enhanced_image
 
     def run(self):
-        ocr_scan = OCRScan()
-        
+        # If we are on windows exe path for tesseract is: C:\Program Files\Tesseract-OCR\tesseract.exe
+        if sys.platform == "win32":
+            path = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+            ocr_scan = OCRScan(tesseract_path=path)
+        else:
+            ocr_scan = OCRScan()
         image_paths = []
         for root, dirs, files in os.walk(self.directory):
             for filename in files:
