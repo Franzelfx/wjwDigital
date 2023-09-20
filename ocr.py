@@ -42,7 +42,7 @@ def log_and_print(message, level=logging.INFO, file_only=False, qt_text_edit=Non
         qt_text_edit.append(log_entry)
 
 class OCRScan:
-    def __init__(self, tesseract_path="tesseract", overlap_percentage=0, section_size_percentage=100, whitelist="0123456789A-"):
+    def __init__(self, tesseract_path="tesseract", overlap_percentage=30, section_size_percentage=60, whitelist="0123456789A-"):
         log_and_print("Initializing OCRScan", level=logging.DEBUG)
         self.tesseract_path = tesseract_path
         self.overlap_percentage = overlap_percentage
@@ -56,6 +56,8 @@ class OCRScan:
             image = Image.open(image_path_or_obj)
         else:
             image = image_path_or_obj
+            # Convert to grayscale
+            image = image.convert("L")
         
         # Apply image enhancement if needed
         if enhance:
