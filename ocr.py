@@ -9,12 +9,13 @@ import numpy as np
 import pytesseract
 from PIL import Image
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 
 PATTERNS = [
     r"\d{2}-\w{10}",
     r"\d{2}-\d+-\d{2}-\d"
 ]
-PIL.Image.MAX_IMAGE_PIXELS = 933120000
+PIL.Image.MAX_IMAGE_PIXELS = None
 
 # Log config to file
 logging.basicConfig(
@@ -42,7 +43,7 @@ def log_and_print(message, level=logging.INFO, file_only=False, qt_text_edit=Non
         qt_text_edit.append(log_entry)
 
 class OCRScan:
-    def __init__(self, tesseract_path="tesseract", overlap_percentage=30, section_size_percentage=60, whitelist="0123456789A-"):
+    def __init__(self, tesseract_path="tesseract", overlap_percentage=30, section_size_percentage=70, whitelist="0123456789A-"):
         log_and_print("Initializing OCRScan", level=logging.DEBUG)
         self.tesseract_path = tesseract_path
         self.overlap_percentage = overlap_percentage
@@ -56,30 +57,46 @@ class OCRScan:
             image = Image.open(image_path_or_obj)
         else:
             image = image_path_or_obj
-            # Convert to grayscale
-            image = image.convert("L")
-        
+            # Convert to grayscale        
         # Apply image enhancement if needed
         if enhance:
-            # Convert PIL Image to NumPy array (required for OpenCV operations)
+            # Open the image using PIL
+            image.convert("RGB")  # Convert image to RGB mode
+
+            # Convert the PIL Image to a NumPy array (required for OpenCV operations)
             image_np = np.array(image)
+
+            # Upscale the image using cubic interpolation
+            height, width = image_np.shape[:2]
+            upscale_factor = 2  # Adjust the upscale factor as needed
+            new_height, new_width = height * upscale_factor, width * upscale_factor
+            image_np = cv2.resize(image_np, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
             
-            # Convert RGB image to BGR (OpenCV uses BGR format)
-            image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-            
-            # Apply a series of enhancements
-            image_np = cv2.GaussianBlur(image_np, (7, 7), 0)  # Apply Gaussian Blur
-            image_np = cv2.bilateralFilter(image_np, 9, 75, 75)  # Apply Bilateral Filter to reduce noise while keeping edges sharp
-            image_np = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)  # Convert BGR back to RGB
-            
-            # Convert NumPy array back to PIL Image
+            # Define a kernel to enhance sharpness
+            kernel = np.array([[0, -1, 0], 
+                            [-1, 5,-1], 
+                            [0, -1, 0]])
+
+            # Apply the kernel to the image to enhance sharpness
+            image_np = cv2.filter2D(image_np, -1, kernel)
+
+            # Convert the image to grayscale
+            image_gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+
+            # Further enhance the image using a CLAHE filter
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            image_np = clahe.apply(image_gray)
+
+            # Save the enhanced image
             image = Image.fromarray(image_np)
+        else:
+            image = image.convert("L")
         
         return image
 
     def _ocr_image(self, image_obj=None):
         try:
-            custom_config = f"-c tessedit_char_whitelist={self.whitelist}"
+            custom_config = f"-c tessedit_char_whitelist={self.whitelist} --oem 3 --psm 6"
             image_obj = self._preprocess_image(image_obj)
             text = pytesseract.image_to_string(image_obj, config=custom_config)
             return text
@@ -101,7 +118,7 @@ class OCRScan:
             output_filename = f"section_{x}_{y}"
             output_path = os.path.join(output_folder, f"{output_filename}.png")
 
-            section.save(output_path)
+            #section.save(output_path)
             section_text = ocr_instance._ocr_image(image_obj=section)
 
             # Write to txt file
@@ -138,6 +155,13 @@ class OCRScan:
         if not results:
             return None
 
+        # Filter None and empty strings from results
+        results = [res for res in results if res]
+
+        # If we have only one result, return it
+        if len(results) == 1:
+            return results[0]
+
         # Create a Counter object to count occurrences of each result
         result_counter = Counter(results)
 
@@ -145,6 +169,7 @@ class OCRScan:
         most_common_result = result_counter.most_common(1)
 
         return most_common_result[0][0] if most_common_result else None
+
 
     def _postprocess(self, text, patterns):
         try:
@@ -195,22 +220,29 @@ class OCRScan:
 
             results = []
 
-            for y in range(0, image_height, shift_height):
-                for x in range(0, image_width, shift_width):
-                    right = min(x + section_width, image_width)
-                    bottom = min(y + section_height, image_height)
-                    section = image.crop((x, y, right, bottom))
+            with ThreadPoolExecutor() as executor:
+                future_results = []
 
-                    text = self._ocr_on_section(
+                for y in range(0, image_height, shift_height):
+                    for x in range(0, image_width, shift_width):
+                        right = min(x + section_width, image_width)
+                        bottom = min(y + section_height, image_height)
+                        section = image.crop((x, y, right, bottom))
+
+                        future = executor.submit(
+                        self._ocr_on_section,
                         section,
                         x,
                         y,
                         self,
                         patterns,
                         output_folder,
-                        md_file
+                        md_file,
                     )
-                    results.append(text)
+                        future_results.append(future)
+            
+                results = [future.result() for future in future_results]
+            
             # Close the Markdown file
             md_file.close()
             # Return the first non-empty or non-None result

@@ -58,14 +58,14 @@ class OCRThread(QThread):
             self.progress_signal.emit(f"Processing image: {image_path}")
             filtered_text = ocr_scan.ocr_on_image(image_path, run_again_with_enhanced_image=self.run_again_with_enhanced_image)
 
+            original_dir = os.path.dirname(image_path)  # Get the directory of the current image
             if filtered_text:
                 self.result_signal.emit(f"Filtered text: {filtered_text}")
-                os.rename(image_path, os.path.join(self.directory, f"{filtered_text}.tif"))
+                os.rename(image_path, os.path.join(original_dir, f"{filtered_text}.tif"))  # Use original_dir here
             else:
                 self.result_signal.emit(f"No filtered text found in image: {image_path}")
-                # Rename the file to indicate that it was processed but no text was found (append "Fehler" if it doesn't already exist)
                 if not image_path.endswith("Fehler.tif"):
-                    os.rename(image_path, os.path.join(self.directory, f"{os.path.basename(image_path)[:-4]}_Fehler.tif"))
+                    os.rename(image_path, os.path.join(original_dir, f"{os.path.basename(image_path)[:-4]}_Fehler.tif"))  # Use original_dir here
 
     def stopProcessing(self):
         self._isRunning = False
