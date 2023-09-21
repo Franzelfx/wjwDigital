@@ -6,6 +6,7 @@ from PyQt5 import QtCore, QtWidgets
 from ocr import OCRScan, resource_path
 from PyQt5.QtCore import QThread, pyqtSignal
 import queue
+import traceback
 
 def get_unique_filename(target_path):
     base, ext = os.path.splitext(target_path)
@@ -180,10 +181,14 @@ class OCRApplication(QtWidgets.QMainWindow):
         self.select_dir_button.setEnabled(True)
 
 def main():
-    app = QtWidgets.QApplication(sys.argv)
-    ocr_app = OCRApplication()
-    ocr_app.show()
-    sys.exit(app.exec_())
+    try:
+        app = QtWidgets.QApplication(sys.argv)
+        ocr_app = OCRApplication()
+        ocr_app.show()
+        sys.exit(app.exec_())
+    except Exception as e:
+        # Logg with traceback
+        logging.error(traceback.format_exc())
 
 if __name__ == '__main__':
     logging.basicConfig(filename="debug.log", level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
