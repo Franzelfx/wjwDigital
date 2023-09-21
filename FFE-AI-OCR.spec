@@ -6,7 +6,7 @@ block_cipher = None
 
 a = Analysis(
     ['ocrApp.py'],
-    pathex=['.'],
+    pathex=[],
     binaries=[],
     datas=[('logo.png', '.')],
     hiddenimports=[],
