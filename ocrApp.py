@@ -7,6 +7,14 @@ from ocr import OCRScan, resource_path
 from PyQt5.QtCore import QThread, pyqtSignal
 import queue
 
+def get_unique_filename(target_path):
+    base, ext = os.path.splitext(target_path)
+    counter = 1
+    while os.path.exists(target_path):
+        target_path = f"{base}_{counter}{ext}"
+        counter += 1
+    return target_path
+
 class LogThread(QThread):
     log_signal = pyqtSignal(str, int)
 
@@ -61,11 +69,14 @@ class OCRThread(QThread):
             original_dir = os.path.dirname(image_path)  # Get the directory of the current image
             if filtered_text:
                 self.result_signal.emit(f"Filtered text: {filtered_text}")
-                os.rename(image_path, os.path.join(original_dir, f"{filtered_text}.tif"))  # Use original_dir here
+                target_path = os.path.join(original_dir, f"{filtered_text}.tif")
+                unique_target_path = get_unique_filename(target_path)
+                os.rename(image_path, unique_target_path)
             else:
                 self.result_signal.emit(f"No filtered text found in image: {image_path}")
-                if not image_path.endswith("Fehler.tif"):
-                    os.rename(image_path, os.path.join(original_dir, f"{os.path.basename(image_path)[:-4]}_Fehler.tif"))  # Use original_dir here
+                target_path = os.path.join(original_dir, f"{os.path.basename(image_path)[:-4]}_Fehler.tif")
+                unique_target_path = get_unique_filename(target_path)
+                os.rename(image_path, unique_target_path)
 
     def stopProcessing(self):
         self._isRunning = False
