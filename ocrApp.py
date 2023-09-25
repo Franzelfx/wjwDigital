@@ -43,18 +43,19 @@ class OCRThread(QThread):
     progress_signal = pyqtSignal(str)  # Signal to update progress
     result_signal = pyqtSignal(str)    # Signal to update results
 
-    def __init__(self, directory, run_again_with_enhanced_image=True):
+    def __init__(self, directory, run_again_with_enhanced_image=True, confidence_threshold=5):
         super().__init__()
         self.directory = directory
+        self.confidence_threshold = confidence_threshold
         self.run_again_with_enhanced_image = run_again_with_enhanced_image
 
     def run(self):
         # If we are on windows exe path for tesseract is: C:\Program Files\Tesseract-OCR\tesseract.exe
         if sys.platform == "win32":
             path = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-            ocr_scan = OCRScan(tesseract_path=path)
+            ocr_scan = OCRScan(tesseract_path=path, confidence_threshold=self.confidence_threshold)
         else:
-            ocr_scan = OCRScan()
+            ocr_scan = OCRScan(confidence_threshold=self.confidence_threshold)
         image_paths = []
         for root, dirs, files in os.walk(self.directory):
             for filename in files:
@@ -120,11 +121,19 @@ class OCRApplication(QtWidgets.QMainWindow):
         central_widget = QtWidgets.QWidget(self)
         self.setCentralWidget(central_widget)
 
+        self.confidence_threshold_label = QtWidgets.QLabel('Confidence Threshold [%]')
+        self.confidence_threshold_edit = QtWidgets.QLineEdit()
+        self.confidence_threshold_edit.setPlaceholderText('Enter confidence threshold (0-100)')
+        self.confidence_threshold_edit.setText('5')
+
+
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.select_dir_button)
         layout.addWidget(self.run_ocr_button)
         layout.addWidget(self.log_text_edit)
         layout.addWidget(self.run_again_with_enhanced_image_checkbox)
+        layout.addWidget(self.confidence_threshold_label)
+        layout.addWidget(self.confidence_threshold_edit)
 
         central_widget.setLayout(layout)
 
@@ -161,8 +170,9 @@ class OCRApplication(QtWidgets.QMainWindow):
             self.select_dir_button.setEnabled(False)
             
             directory = self.selected_directory
+            confidence_threshold = float(self.confidence_threshold_edit.text() or 5)
             run_again_with_enhanced_image = self.run_again_with_enhanced_image_checkbox.isChecked()
-            self.ocr_thread = OCRThread(directory, run_again_with_enhanced_image)
+            self.ocr_thread = OCRThread(directory, run_again_with_enhanced_image, confidence_threshold)
             self.ocr_thread.progress_signal.connect(self.logMessage)
             self.ocr_thread.result_signal.connect(self.logMessage)
             self.ocr_thread.finished.connect(self.ocrCompleted)

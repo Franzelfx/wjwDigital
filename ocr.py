@@ -7,6 +7,7 @@ import logging
 import argparse
 import numpy as np
 import pytesseract
+import traceback
 from PIL import Image
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -43,13 +44,27 @@ def log_and_print(message, level=logging.INFO, file_only=False, qt_text_edit=Non
         qt_text_edit.append(log_entry)
 
 class OCRScan:
-    def __init__(self, tesseract_path="tesseract", overlap_percentage=30, section_size_percentage=70, whitelist="0123456789A-"):
+    def __init__(self, tesseract_path="tesseract", overlap_percentage=30, section_size_percentage=70, whitelist="0123456789A-", confidence_threshold=5):
         log_and_print("Initializing OCRScan", level=logging.DEBUG)
         self.tesseract_path = tesseract_path
         self.overlap_percentage = overlap_percentage
         self.section_size_percentage = section_size_percentage
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
         self.whitelist = whitelist
+        self.confidence_threshold = confidence_threshold
+    
+    def _is_file_in_desired_format(self, file_path, patterns):
+        """Checks if the filename matches any of the given patterns."""
+        try:
+            file_name = os.path.basename(file_path)
+            for pattern in patterns:
+                if re.search(pattern, file_name):
+                    return True
+            return False
+        except Exception as e:
+            log_and_print(f"Error processing the file name {file_path}: {e}", level=logging.ERROR)
+            return False
+
 
     def _preprocess_image(self, image_path_or_obj, enhance=False):
         # If it's a string path, open it, otherwise assume it's an Image object
@@ -98,11 +113,17 @@ class OCRScan:
         try:
             custom_config = f"-c tessedit_char_whitelist={self.whitelist} --oem 3 --psm 6"
             image_obj = self._preprocess_image(image_obj)
-            text = pytesseract.image_to_string(image_obj, config=custom_config)
-            return text
+            data = pytesseract.image_to_data(image_obj, output_type='data.frame', config=custom_config)
+            
+            data = data[data.conf != -1]
+            lines = data.groupby('block_num')['text'].apply(list)
+            conf = data.groupby(['block_num'])['conf'].mean()
+            
+            return lines, conf
         except Exception as e:
+            traceback.print_exc()
             log_and_print(f"An error occurred: {e}", level=logging.ERROR)
-            return None
+            return None, None
 
     def _ocr_on_section(
         self,
@@ -115,33 +136,46 @@ class OCRScan:
         md_file,
     ):
         try:
-            output_filename = f"section_{x}_{y}"
-            output_path = os.path.join(output_folder, f"{output_filename}.png")
+            # Convert the section to an image object and apply OCR
+            if not isinstance(section, Image.Image):
+                image_obj = Image.fromarray(section)
+            else:
+                image_obj = section
 
-            #section.save(output_path)
-            section_text = ocr_instance._ocr_image(image_obj=section)
+            # Get the OCR results and confidence values
+            section_texts, confidences = ocr_instance._ocr_image(image_obj=image_obj)
+            if section_texts is not None:
+                section_text = "\n".join([" ".join(map(str, line)) for line in section_texts])
+            else:
+                section_text = ""  
 
-            # Write to txt file
-            txt_file_path = os.path.join(output_folder, f"{output_filename}.txt")
-            with open(txt_file_path, "w") as f:
-                f.write(section_text)
+            # Only consider the text if the confidence is above the threshold
+            average_confidence = confidences.mean() if not confidences.empty else 0
+            if average_confidence < ocr_instance.confidence_threshold:
+                log_and_print(
+                    f"Average confidence for section ({x}, {y}) is {average_confidence}, given threshold is {ocr_instance.confidence_threshold}, skipping.",
+                    level=logging.DEBUG,
+                )
+                return None
 
-            # Postprocess the text
-            log_and_print(
-                f"Performing postprocessing on section {output_path}",
-                level=logging.DEBUG,
-            )
-            section_text = ocr_instance._postprocess(section_text, patterns)
+            # Postprocess the obtained text
+            log_and_print(f"Postprocessing image section {x}_{y}", level=logging.DEBUG)
+            processed_text = ocr_instance._postprocess(section_text, patterns, output_folder)
 
-            if section_text:
-                # Add section image and text to the markdown file
-                md_file.write(f"![Section Image](./sections/{output_filename})\n\n")
-                md_file.write(f"```\n{section_text}\n```\n\n")
-            return section_text
+            # If there's any text after postprocessing, save and return it
+            if processed_text:
+                save_path = os.path.join(output_folder, f"section_{x}_{y}.png")
+                image_obj.save(save_path)
+                md_file.write(f"![section_{x}_{y}]({save_path})\n\n")
+                md_file.write(f"{processed_text}\n\n")
+                return processed_text
+
         except Exception as e:
-            log_and_print(f"An error occurred in worker: {e}", level=logging.ERROR)
-            return None
-        
+            traceback.print_exc()
+            log_and_print(f"An error occurred during OCR on section ({x}, {y}): {e}", level=logging.ERROR)
+
+        return None
+
     def _find_most_common_result(self, results):
         """
         Find the most common result from a list of results.
@@ -170,21 +204,22 @@ class OCRScan:
 
         return most_common_result[0][0] if most_common_result else None
 
-
-    def _postprocess(self, text, patterns):
+    def _postprocess(self, text, patterns, folder_name):
         try:
             matched_text = []
             for pattern in patterns:
                 matches = re.findall(pattern, text)
                 matched_text.extend(matches)
             filtered_text = matched_text[0] if matched_text else None
-            # Output Format should be:
-            # xx-xxxxxx-xx-xx (if length is 13)
-            if filtered_text and len(filtered_text) == 13:
-                filtered_text = filtered_text.replace("-", "")
-                filtered_text = filtered_text[:2] + "-" + filtered_text[2:8] + "-" + filtered_text[8:10] + "-" + filtered_text[10:]
+
+            # Use the new function to check the folder name
+            filtered_text = self._check_folder_name(filtered_text, folder_name)
+            log_and_print(f"Folders name: {folder_name}", level=logging.DEBUG)
+            log_and_print(f"Filtered text: {filtered_text}", level=logging.DEBUG)
+
             return filtered_text
         except Exception as e:
+            traceback.print_exc()
             log_and_print(f"An error occurred: {e}", level=logging.ERROR)
             return None
         
@@ -195,8 +230,11 @@ class OCRScan:
         run_again_with_enhanced_image=True,
     ):
         try:
+            if self._is_file_in_desired_format(image_path, patterns):
+                 log_and_print(f"File {image_path} is already in the desired format. Skipping...", level=logging.INFO)
+                 return None
             log_and_print(
-                f"Performing OCR with sliding window on image {image_path}",
+                f"Performing OCR with sliding window on image {image_path}.",
                 level=logging.DEBUG,
             )
             # Create a dynamic output folder based on the input file name in the same directory but create "results" folder
@@ -249,7 +287,7 @@ class OCRScan:
             # If result is none, run again with enhanced image
             if not self._find_most_common_result(results) and run_again_with_enhanced_image:
                 log_and_print(
-                    f"No results found, running again with enhanced image",
+                    f"No results found, running again with enhanced image.",
                     level=logging.INFO,
                 )
                 return self.ocr_on_image(
@@ -260,6 +298,7 @@ class OCRScan:
             else:
                 return self._find_most_common_result(results)
         except Exception as e:
+            traceback.print_exc()
             log_and_print(f"An error occurred: {e}", level=logging.ERROR)
             return None
 
@@ -267,8 +306,8 @@ def main():
     parser = argparse.ArgumentParser(description="Perform OCR on an image.")
     parser.add_argument("image_path", help="Path to the input image.")
     parser.add_argument("--tp", default="tesseract", help="Path to Tesseract executable.")
-    parser.add_argument("--op", type=int, default=0, help="Overlap percentage for sections.")
-    parser.add_argument("--ssp", type=int, default=100, help="Section size percentage.")
+    parser.add_argument("--op", type=int, default=20, help="Overlap percentage for sections.")
+    parser.add_argument("--ssp", type=int, default=70, help="Section size percentage.")
     parser.add_argument("--lf", default="debug.log", help="Path to log file.")
     parser.add_argument("--whitelist", default="0123456789A-", help="Whitelist for Tesseract.")
     
