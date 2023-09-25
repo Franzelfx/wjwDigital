@@ -160,7 +160,9 @@ class OCRScan:
 
             # Postprocess the obtained text
             log_and_print(f"Postprocessing image section {x}_{y}", level=logging.DEBUG)
-            processed_text = ocr_instance._postprocess(section_text, patterns, output_folder)
+            # Get one two folder names up from the output folder
+            folder_name = os.path.basename(os.path.dirname(os.path.dirname(output_folder)))
+            processed_text = ocr_instance._postprocess(section_text, patterns, folder_name)
 
             # If there's any text after postprocessing, save and return it
             if processed_text:
@@ -203,6 +205,31 @@ class OCRScan:
         most_common_result = result_counter.most_common(1)
 
         return most_common_result[0][0] if most_common_result else None
+    
+    def _check_folder_name(self, extracted_text, folder_name):
+        """
+        Checks if the folder name where the image originates has the same starting numbers as the OCR result.
+        
+        Args:
+            extracted_text (str): Extracted text from the image using OCR.
+            folder_name (str): Name of the folder where the image originates.
+        
+        Returns:
+            str or None: Extracted text if the starting numbers match or None.
+        """
+        if not extracted_text:
+            return None
+
+        # Extract the starting numbers from the folder name
+        folder_name_pattern = re.search(r"\d{2}-\d{2}", folder_name)
+        folder_start_numbers = folder_name_pattern.group(0) if folder_name_pattern else None
+
+        # Check if the starting numbers in the folder name match the extracted text
+        if folder_start_numbers and folder_start_numbers in extracted_text:
+            return extracted_text
+        else:
+            return None
+
 
     def _postprocess(self, text, patterns, folder_name):
         try:
@@ -216,6 +243,7 @@ class OCRScan:
             filtered_text = self._check_folder_name(filtered_text, folder_name)
             log_and_print(f"Folders name: {folder_name}", level=logging.DEBUG)
             log_and_print(f"Filtered text: {filtered_text}", level=logging.DEBUG)
+
 
             return filtered_text
         except Exception as e:
