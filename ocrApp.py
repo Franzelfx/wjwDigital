@@ -71,14 +71,29 @@ class OCRThread(QThread):
             original_dir = os.path.dirname(image_path)  # Get the directory of the current image
             if filtered_text:
                 self.result_signal.emit(f"Filtered text: {filtered_text}")
-                target_path = os.path.join(original_dir, f"{filtered_text}.tif")
+                target_path = os.path.join(original_dir, f"{filtered_text}")
                 unique_target_path = get_unique_filename(target_path)
                 os.rename(image_path, unique_target_path)
+                # Append _OCR-korrekt to the filename
+                os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
+                self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
             else:
-                self.result_signal.emit(f"No filtered text found in image: {image_path}")
-                target_path = os.path.join(original_dir, f"{os.path.basename(image_path)[:-4]}_Fehler.tif")
-                unique_target_path = get_unique_filename(target_path)
-                os.rename(image_path, unique_target_path)
+                original_basename = os.path.basename(image_path)[:-4] # Get original basename without extension
+                
+                # Only append "_Fehler" if it's not already in the filename
+                if "_Fehler" not in original_basename:
+                    target_name = f"{original_basename}_Fehler.tif"
+                else:
+                    target_name = f"{original_basename}.tif"
+
+                if "_Hollerith" not in original_basename:
+                    target_path = os.path.join(original_dir, target_name)
+                    unique_target_path = get_unique_filename(target_path)
+                    os.rename(image_path, unique_target_path)
+                    self.result_signal.emit(f"No filtered text found in image: {image_path}")
+                    self.result_signal.emit(f"Renamed image to: {unique_target_path}")
+                else:
+                    self.result_signal.emit(f"Image already scanned: {image_path}")
 
     def stopProcessing(self):
         self._isRunning = False

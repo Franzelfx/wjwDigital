@@ -241,9 +241,6 @@ class OCRScan:
 
             # Use the new function to check the folder name
             filtered_text = self._check_folder_name(filtered_text, folder_name)
-            log_and_print(f"Folders name: {folder_name}", level=logging.DEBUG)
-            log_and_print(f"Filtered text: {filtered_text}", level=logging.DEBUG)
-
 
             return filtered_text
         except Exception as e:
@@ -259,12 +256,24 @@ class OCRScan:
     ):
         try:
             if self._is_file_in_desired_format(image_path, patterns):
-                 log_and_print(f"File {image_path} is already in the desired format. Skipping...", level=logging.INFO)
-                 return None
-            log_and_print(
-                f"Performing OCR with sliding window on image {image_path}.",
-                level=logging.DEBUG,
-            )
+                log_and_print(f"File {image_path} is already in the desired format.", level=logging.INFO)
+                
+                # Get the base filename without extension
+                filename_without_ext, ext = os.path.splitext(os.path.basename(image_path))
+                
+                # Append "_Hollerith" only if "_OCR-korrekt" is not in the filename
+                if "_OCR-korrekt" not in filename_without_ext:
+                    new_filename = filename_without_ext + "_Hollerith" + ext
+                    target_path = os.path.join(os.path.dirname(image_path), new_filename)
+                    if "Hollerith" not in filename_without_ext:
+                        os.rename(image_path, target_path)
+                    log_and_print(f"Renamed {image_path} to {target_path}", level=logging.INFO)
+                    return None
+                
+                log_and_print(
+                    f"Performing OCR with sliding window on image {image_path}.",
+                    level=logging.DEBUG,
+                )
             # Create a dynamic output folder based on the input file name in the same directory but create "results" folder
             base_filename = os.path.splitext(os.path.basename(image_path))[0]
             output_folder = os.path.join(
