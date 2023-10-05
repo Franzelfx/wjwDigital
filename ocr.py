@@ -267,10 +267,9 @@ class OCRScan:
                     target_path = os.path.join(os.path.dirname(image_path), new_filename)
                     if "Hollerith" not in filename_without_ext:
                         # Rename if file doesn't already exist
-                        if not os.path.exists(target_path):
-                            os.rename(image_path, target_path)
-                            log_and_print(f"Renamed {image_path} to {target_path}", level=logging.INFO)
-                            return None
+                        os.rename(image_path, target_path)
+                        log_and_print(f"Renamed {image_path} to {target_path}", level=logging.INFO)
+                        return None
                     return None
                 
                 log_and_print(

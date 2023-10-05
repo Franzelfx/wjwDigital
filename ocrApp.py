@@ -74,11 +74,10 @@ class OCRThread(QThread):
                 target_path = os.path.join(original_dir, f"{filtered_text}")
                 unique_target_path = get_unique_filename(target_path)
                 # Rename if not already exist
-                if not os.path.exists(unique_target_path):
-                    os.rename(image_path, unique_target_path)
-                    # Append _OCR-korrekt to the filename
-                    os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
-                    self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
+                os.rename(image_path, unique_target_path)
+                # Append _OCR-korrekt to the filename
+                os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
+                self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
             else:
                 original_basename = os.path.basename(image_path)[:-4] # Get original basename without extension
                 
@@ -91,10 +90,9 @@ class OCRThread(QThread):
                 if "_Hollerith" not in original_basename:
                     target_path = os.path.join(original_dir, target_name)
                     unique_target_path = get_unique_filename(target_path)
-                    if not os.path.exists(unique_target_path):
-                        os.rename(image_path, unique_target_path)
-                        self.result_signal.emit(f"No filtered text found in image: {image_path}")
-                        self.result_signal.emit(f"Renamed image to: {unique_target_path}")
+                    os.rename(image_path, unique_target_path)
+                    self.result_signal.emit(f"No filtered text found in image: {image_path}")
+                    self.result_signal.emit(f"Renamed image to: {unique_target_path}")
                 else:
                     self.result_signal.emit(f"Image already scanned: {image_path}")
 
