@@ -13,8 +13,8 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 PATTERNS = [
-    r"\d{2}-\w{10}",
-    r"\d{2}-\d+-\d{2}-\d"
+    r"\d{2}-\d{8}A\d",
+    r"\d{2}-\d{6}-\d{2}-\d"
 ]
 PIL.Image.MAX_IMAGE_PIXELS = None
 
@@ -53,6 +53,14 @@ class OCRScan:
         self.whitelist = whitelist
         self.confidence_threshold = confidence_threshold
     
+    @property
+    def failure(self):
+        if self._failure:
+            self._failure = False
+            return True
+        else:
+            return False
+
     def _is_file_in_desired_format(self, file_path, patterns):
         """Checks if the filename matches any of the given patterns."""
         try:
@@ -64,7 +72,6 @@ class OCRScan:
         except Exception as e:
             log_and_print(f"Error processing the file name {file_path}: {e}", level=logging.ERROR)
             return False
-
 
     def _preprocess_image(self, image_path_or_obj, enhance=False):
         # If it's a string path, open it, otherwise assume it's an Image object
@@ -229,7 +236,6 @@ class OCRScan:
             return extracted_text
         else:
             return None
-
 
     def _postprocess(self, text, patterns, folder_name):
         try:
