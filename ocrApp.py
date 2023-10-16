@@ -77,8 +77,12 @@ class OCRThread(QThread):
                     # Rename if not already exist
                     os.rename(image_path, unique_target_path)
                     # Append _OCR-korrekt to the filename
-                    os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
-                    self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
+                    if ocr_scan.failure == False:
+                        os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
+                        self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
+                    else:
+                        os.rename(unique_target_path, f"{unique_target_path}_Fehler.tif")
+                        self.result_signal.emit(f"Renamed image to: {unique_target_path}_Fehler.tif")
                 else:
                     original_basename = os.path.basename(image_path)[:-4] # Get original basename without extension
                     

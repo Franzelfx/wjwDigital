@@ -52,6 +52,7 @@ class OCRScan:
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
         self.whitelist = whitelist
         self.confidence_threshold = confidence_threshold
+        self._failure = False
     
     @property
     def failure(self):
@@ -160,10 +161,10 @@ class OCRScan:
             average_confidence = confidences.mean() if not confidences.empty else 0
             if average_confidence < ocr_instance.confidence_threshold:
                 log_and_print(
-                    f"Average confidence for section ({x}, {y}) is {average_confidence}, given threshold is {ocr_instance.confidence_threshold}, skipping.",
-                    level=logging.DEBUG,
+                    f"Average confidence for section ({x}, {y}) is {average_confidence}, given threshold is {ocr_instance.confidence_threshold}.",
+                    level=logging.WARNING,
                 )
-                return None
+                self._failure = True
 
             # Postprocess the obtained text
             log_and_print(f"Postprocessing image section {x}_{y}", level=logging.DEBUG)
