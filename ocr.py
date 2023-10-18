@@ -110,6 +110,9 @@ class OCRScan:
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
             image_np = clahe.apply(image_gray)
 
+            # Denoise the image using a bilateral filter
+            image_np = cv2.bilateralFilter(image_np, 9, 75, 75)
+
             # Save the enhanced image
             image = Image.fromarray(image_np)
         else:
