@@ -89,27 +89,6 @@ class OCRScan:
             # Convert the PIL Image to a NumPy array (required for OpenCV operations)
             image_np = np.array(image)
 
-            # Upscale the image using cubic interpolation
-            height, width = image_np.shape[:2]
-            upscale_factor = 2  # Adjust the upscale factor as needed
-            new_height, new_width = height * upscale_factor, width * upscale_factor
-            image_np = cv2.resize(image_np, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
-            
-            # Define a kernel to enhance sharpness
-            kernel = np.array([[0, -1, 0], 
-                            [-1, 5,-1], 
-                            [0, -1, 0]])
-
-            # Apply the kernel to the image to enhance sharpness
-            image_np = cv2.filter2D(image_np, -1, kernel)
-
-            # Convert the image to grayscale
-            image_gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
-
-            # Further enhance the image using a CLAHE filter
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            image_np = clahe.apply(image_gray)
-
             # Denoise the image using a bilateral filter
             image_np = cv2.bilateralFilter(image_np, 9, 75, 75)
 
@@ -356,7 +335,7 @@ def main():
     parser.add_argument("image_path", help="Path to the input image.")
     parser.add_argument("--tp", default="tesseract", help="Path to Tesseract executable.")
     parser.add_argument("--op", type=int, default=20, help="Overlap percentage for sections.")
-    parser.add_argument("--ssp", type=int, default=70, help="Section size percentage.")
+    parser.add_argument("--ssp", type=int, default=50, help="Section size percentage.")
     parser.add_argument("--lf", default="debug.log", help="Path to log file.")
     parser.add_argument("--whitelist", default="0123456789A-", help="Whitelist for Tesseract.")
     
