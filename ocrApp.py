@@ -1,12 +1,16 @@
 import os
 import sys
 import logging
+import re
 from PyQt5.QtGui import QPixmap
 from PyQt5 import QtCore, QtWidgets
 from ocr import OCRScan, resource_path
 from PyQt5.QtCore import QThread, pyqtSignal
 import queue
 import traceback
+
+def sample_to_regex(sample):
+    return sample.replace('x', '[A-Za-z0-9]')
 
 def get_unique_filename(target_path):
     base, ext = os.path.splitext(target_path)
@@ -43,14 +47,18 @@ class OCRThread(QThread):
     progress_signal = pyqtSignal(str)  # Signal to update progress
     result_signal = pyqtSignal(str)    # Signal to update results
 
-    def __init__(self, directory, run_again_with_enhanced_image=True, confidence_threshold=5):
+    def __init__(self, directory, run_again_with_enhanced_image=True, confidence_threshold=5, use_txt=False, custom_pattern=None):
         super().__init__()
+        self.use_txt = use_txt
+        self.custom_pattern = custom_pattern
         self.directory = directory
         self.confidence_threshold = confidence_threshold
         self.run_again_with_enhanced_image = run_again_with_enhanced_image
 
     def run(self):
         # If we are on windows exe path for tesseract is: C:\Program Files\Tesseract-OCR\tesseract.exe
+        txt_files = []
+        tif_files = []
         if sys.platform == "win32":
             path = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
             ocr_scan = OCRScan(tesseract_path=path, confidence_threshold=self.confidence_threshold)
@@ -59,49 +67,79 @@ class OCRThread(QThread):
         image_paths = []
         for root, dirs, files in os.walk(self.directory):
             for filename in files:
-                if filename.lower().endswith(('.tif', '.tiff')):
-                    image_paths.append(os.path.join(root, filename))
-        
-        for image_path in image_paths:
-            try:
-                if not self.isRunning:
-                    break
-                self.progress_signal.emit(f"Processing image: {image_path}")
-                filtered_text = ocr_scan.ocr_on_image(image_path, run_again_with_enhanced_image=self.run_again_with_enhanced_image)
+                if filename.lower().endswith('.tif'):
+                    tif_files.append(os.path.join(root, filename))
+                elif filename.lower().endswith('.txt'):
+                    txt_files.append(os.path.join(root, filename))
 
-                original_dir = os.path.dirname(image_path)  # Get the directory of the current image
-                if filtered_text:
-                    self.result_signal.emit(f"Filtered text: {filtered_text}")
-                    target_path = os.path.join(original_dir, f"{filtered_text}")
-                    unique_target_path = get_unique_filename(target_path)
-                    # Rename if not already exist
-                    os.rename(image_path, unique_target_path)
-                    # Append _OCR-korrekt to the filename
-                    if ocr_scan.failure == False:
-                        os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
-                        self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
-                    else:
-                        os.rename(unique_target_path, f"Fehler_{unique_target_path}.tif")
-                        self.result_signal.emit(f"Renamed image to: Fehler_{unique_target_path}.tif")
-                else:
-                    original_basename = os.path.basename(image_path)[:-4] # Get original basename without extension
-                    
-                    # Only append "_Fehler" if it's not already in the filename
-                    if "Fehler_" not in original_basename:
-                        target_name = f"Fehler_{original_basename}.tif"
-                    else:
-                        target_name = f"{original_basename}.tif"
+        if self.use_txt:
+                for tif_path, txt_path in zip(tif_files, txt_files):
+                    try:
+                        with open(txt_path, 'r') as file:
+                            txt_content = file.read()
+                        # Convert custom pattern to a regular expression
+                        pattern = self.custom_pattern.replace('x', '[A-Za-z0-9]')
+                        matches = re.findall(pattern, txt_content)
+                        if matches:
+                            extracted_pattern = matches[0]  # Assuming only one match, you can adjust if needed
 
-                    if "_Hollerith" not in original_basename:
-                        target_path = os.path.join(original_dir, target_name)
+                            # Rename .tif file
+                            original_tif_dir = os.path.dirname(tif_path)
+                            tif_target_path = os.path.join(original_tif_dir, f"{extracted_pattern}.tif")
+                            unique_tif_target_path = get_unique_filename(tif_target_path)
+                            os.rename(tif_path, unique_tif_target_path)
+                            self.result_signal.emit(f"Renamed image to: {unique_tif_target_path}")
+
+                            # Rename .txt file
+                            original_txt_dir = os.path.dirname(txt_path)
+                            txt_target_path = os.path.join(original_txt_dir, f"{extracted_pattern}.txt")
+                            unique_txt_target_path = get_unique_filename(txt_target_path)
+                            os.rename(txt_path, unique_txt_target_path)
+                            self.result_signal.emit(f"Renamed text file to: {unique_txt_target_path}")
+
+                    except Exception as e:
+                        continue
+        else:
+            for image_path in image_paths:
+                try:
+                    if not self.isRunning:
+                        break
+                    self.progress_signal.emit(f"Processing image: {image_path}")
+                    filtered_text = ocr_scan.ocr_on_image(image_path, run_again_with_enhanced_image=self.run_again_with_enhanced_image)
+
+                    original_dir = os.path.dirname(image_path)  # Get the directory of the current image
+                    if filtered_text:
+                        self.result_signal.emit(f"Filtered text: {filtered_text}")
+                        target_path = os.path.join(original_dir, f"{filtered_text}")
                         unique_target_path = get_unique_filename(target_path)
+                        # Rename if not already exist
                         os.rename(image_path, unique_target_path)
-                        self.result_signal.emit(f"No filtered text found in image: {image_path}")
-                        self.result_signal.emit(f"Renamed image to: {unique_target_path}")
+                        # Append _OCR-korrekt to the filename
+                        if ocr_scan.failure == False:
+                            os.rename(unique_target_path, f"{unique_target_path}_OCR-korrekt.tif")
+                            self.result_signal.emit(f"Renamed image to: {unique_target_path}_OCR-korrekt.tif")
+                        else:
+                            os.rename(unique_target_path, f"Fehler_{unique_target_path}.tif")
+                            self.result_signal.emit(f"Renamed image to: Fehler_{unique_target_path}.tif")
                     else:
-                        self.result_signal.emit(f"Image already scanned: {image_path}")
-            except Exception as e:
-                continue
+                        original_basename = os.path.basename(image_path)[:-4] # Get original basename without extension
+                        
+                        # Only append "_Fehler" if it's not already in the filename
+                        if "Fehler_" not in original_basename:
+                            target_name = f"Fehler_{original_basename}.tif"
+                        else:
+                            target_name = f"{original_basename}.tif"
+
+                        if "_Hollerith" not in original_basename:
+                            target_path = os.path.join(original_dir, target_name)
+                            unique_target_path = get_unique_filename(target_path)
+                            os.rename(image_path, unique_target_path)
+                            self.result_signal.emit(f"No filtered text found in image: {image_path}")
+                            self.result_signal.emit(f"Renamed image to: {unique_target_path}")
+                        else:
+                            self.result_signal.emit(f"Image already scanned: {image_path}")
+                except Exception as e:
+                    continue
 
     def stopProcessing(self):
         self._isRunning = False
@@ -112,6 +150,12 @@ class OCRApplication(QtWidgets.QMainWindow):
 
         self.initUI()
         self.displayLogoImage()
+
+        self.custom_pattern_checkbox = QtWidgets.QCheckBox("Use custom pattern")
+        self.custom_pattern_edit = QtWidgets.QLineEdit()
+        self.custom_pattern_edit.setPlaceholderText("Enter custom pattern (e.g. 'xXXxx')")
+        
+        self.use_txt_checkbox = QtWidgets.QCheckBox("Process .txt files instead of .tif")
 
         self.log_thread = LogThread()
         self.log_thread.log_signal.connect(self.updateLogText)
@@ -151,6 +195,9 @@ class OCRApplication(QtWidgets.QMainWindow):
 
 
         layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.custom_pattern_checkbox)
+        layout.addWidget(self.custom_pattern_edit)
+        layout.addWidget(self.use_txt_checkbox)
         layout.addWidget(self.select_dir_button)
         layout.addWidget(self.run_ocr_button)
         layout.addWidget(self.log_text_edit)
