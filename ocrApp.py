@@ -151,12 +151,6 @@ class OCRApplication(QtWidgets.QMainWindow):
         self.initUI()
         self.displayLogoImage()
 
-        self.custom_pattern_checkbox = QtWidgets.QCheckBox("Use custom pattern")
-        self.custom_pattern_edit = QtWidgets.QLineEdit()
-        self.custom_pattern_edit.setPlaceholderText("Enter custom pattern (e.g. 'xXXxx')")
-        
-        self.use_txt_checkbox = QtWidgets.QCheckBox("Process .txt files instead of .tif")
-
         self.log_thread = LogThread()
         self.log_thread.log_signal.connect(self.updateLogText)
         self.log_thread.start()
@@ -193,6 +187,10 @@ class OCRApplication(QtWidgets.QMainWindow):
         self.confidence_threshold_edit.setPlaceholderText('Enter confidence threshold (0-100)')
         self.confidence_threshold_edit.setText('5')
 
+        self.custom_pattern_checkbox = QtWidgets.QCheckBox("Use custom pattern")
+        self.custom_pattern_edit = QtWidgets.QLineEdit()
+        self.custom_pattern_edit.setPlaceholderText("Enter custom pattern (e.g. 'xx-xxxxxx-xx-xx')")
+        self.use_txt_checkbox = QtWidgets.QCheckBox("Process .txt files instead of .tif")
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.custom_pattern_checkbox)
@@ -263,12 +261,27 @@ class OCRApplication(QtWidgets.QMainWindow):
 def main():
     try:
         app = QtWidgets.QApplication(sys.argv)
+        if not app:
+            raise RuntimeError("Failed to initialize QApplication.")
+
         ocr_app = OCRApplication()
         ocr_app.show()
-        sys.exit(app.exec_())
+        
+        result = app.exec_()
+
+        # Check if the event loop terminated normally
+        if result != 0:
+            logging.error(f"Application terminated with code {result}")
+        
+        sys.exit(result)
     except Exception as e:
-        # Logg with traceback
+        # Log the exception
         logging.error(traceback.format_exc())
+
+if __name__ == '__main__':
+    logging.basicConfig(filename="debug.log", level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+    main()
+
 
 if __name__ == '__main__':
     logging.basicConfig(filename="debug.log", level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
