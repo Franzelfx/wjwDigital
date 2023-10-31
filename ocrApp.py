@@ -244,7 +244,15 @@ class OCRApplication(QtWidgets.QMainWindow):
             self.ocr_thread.progress_signal.connect(self.logMessage)
             self.ocr_thread.result_signal.connect(self.logMessage)
             self.ocr_thread.finished.connect(self.ocrCompleted)
+
+            # Set use_txt to True if you want to process .txt files
+            self.ocr_thread.use_txt = self.use_txt_checkbox.isChecked()
+
+            # Set custom_pattern if needed
+            self.ocr_thread.custom_pattern = self.custom_pattern_edit.text()
+
             self.ocr_thread.start()
+
     
     def closeEvent(self, event):
         # Ensure that the OCR thread is stopped when the app is closed
