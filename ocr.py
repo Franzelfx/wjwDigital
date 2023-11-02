@@ -226,6 +226,7 @@ class OCRScan:
         try:
             matched_text = []
             for pattern in patterns:
+                # Compile patterns
                 matches = re.findall(pattern, text)
                 matched_text.extend(matches)
             filtered_text = matched_text[0] if matched_text else None
