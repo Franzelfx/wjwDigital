@@ -59,6 +59,7 @@ class OCRThread(QThread):
         # If we are on windows exe path for tesseract is: C:\Program Files\Tesseract-OCR\tesseract.exe
         txt_files = []
         tif_files = []
+        pdf_files = []
         if sys.platform == "win32":
             path = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
             ocr_scan = OCRScan(tesseract_path=path, confidence_threshold=self.confidence_threshold)
@@ -67,8 +68,8 @@ class OCRThread(QThread):
         image_paths = []
         for root, dirs, files in os.walk(self.directory):
             for filename in files:
-                if filename.lower().endswith('.tif'):
-                    tif_files.append(os.path.join(root, filename))
+                if filename.lower().endswith('.pdf'):
+                    pdf_files.append(os.path.join(root, filename))
                 elif filename.lower().endswith('.txt'):
                     txt_files.append(os.path.join(root, filename))
 
