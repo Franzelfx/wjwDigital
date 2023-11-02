@@ -105,7 +105,7 @@ class OCRThread(QThread):
 
     def search_patterns_in_file(self, file_path):
         try:
-            with open(file_path, 'r') as file:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                 content = file.read()
                 content = content.replace(" ", "")
 
