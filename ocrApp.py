@@ -112,14 +112,14 @@ class OCRThread(QThread):
             for pattern in PATTERNS:
                 matches = re.findall(pattern, content)
                 if matches:
-                    log_and_print(f"Pattern: {pattern} - Matches: {matches}", level=logging.INFO)
+                    log_and_print(f"INFO: {pattern} - Matches: {matches}", level=logging.INFO)
                     return matches
                 else:
-                    log_and_print(f"Pattern: {pattern} - No matches", level=logging.WARNING)
+                    log_and_print(f"WARNING: {pattern} - No matches", level=logging.WARNING)
         except FileNotFoundError:
             log_and_print(f"File not found: {file_path}", level=logging.ERROR)
         except Exception as e:
-            log_and_print(f"Error: {e}", level=logging.ERROR)
+            log_and_print(f"ERROR: {e}", level=logging.ERROR)
 
     def ocr(self, ocr_scan, image_paths):
         for image_path in image_paths:
