@@ -182,35 +182,47 @@ class OCRThread(QThread):
             except Exception as e:
                 continue
 
-    def txt(self, txt_paths, pdf_paths):
-        for txt_path, pdf_path in zip(txt_paths, pdf_paths):
+    def txt(self, txt_paths, pdf_paths, tif_paths):
+        for txt_path, pdf_path, tif_path in zip(txt_paths, pdf_paths, tif_paths):
             try:
                 match = self.search_patterns_in_file(txt_path)
                 if match:
-                    # Get the directory and base name of the PDF file
+                    # Get the directory and base name of the files
                     pdf_dir, pdf_name = os.path.split(pdf_path)
                     pdf_base, pdf_ext = os.path.splitext(pdf_name)
-
-                    # Get the directory and base name of the TXT file
+                    
                     txt_dir, txt_name = os.path.split(txt_path)
                     txt_base, txt_ext = os.path.splitext(txt_name)
+                    
+                    tif_dir, tif_name = os.path.split(tif_path)
+                    tif_base, tif_ext = os.path.splitext(tif_name)
 
                     # Construct the new file names
                     new_pdf_name = f"{match[0]}{pdf_ext}"
                     new_txt_name = f"{match[0]}{txt_ext}"
+                    new_tif_name = f"{match[0]}{tif_ext}"
 
                     # Construct the full paths for the new names
                     new_pdf_path = os.path.join(pdf_dir, new_pdf_name)
                     new_txt_path = os.path.join(txt_dir, new_txt_name)
+                    new_tif_path = os.path.join(tif_dir, new_tif_name)
 
-                    # Rename both files using shutil.move for cross-device moves
-                    shutil.move(pdf_path, new_pdf_path)
+                    # Rename the TXT file
                     shutil.move(txt_path, new_txt_path)
-
-                    self.result_signal.emit(f"Renamed PDF to: {new_pdf_path}")
                     self.result_signal.emit(f"Renamed TXT to: {new_txt_path}")
 
+                    # Rename the PDF file, if it exists
+                    if os.path.exists(pdf_path):
+                        shutil.move(pdf_path, new_pdf_path)
+                        self.result_signal.emit(f"Renamed PDF to: {new_pdf_path}")
+
+                    # Rename the TIF file, if it exists
+                    if os.path.exists(tif_path):
+                        shutil.move(tif_path, new_tif_path)
+                        self.result_signal.emit(f"Renamed TIF to: {new_tif_path}")
+
             except Exception as e:
+                self.error_signal.emit(f"An error occurred: {e}")
                 continue
 
 
