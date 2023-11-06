@@ -233,7 +233,7 @@ class OCRThread(QThread):
         pdf_files = self.getFilesInDirectory(self.directory, ".pdf")
 
         if self.use_txt:
-            self.txt(txt_files, pdf_files)
+            self.txt(txt_files, pdf_files, tif_files)
         else:
             ocr_scan = self.getOcrInstance()
             self.progress_signal.emit(f"Processing {len(tif_files)} .tif files...")
