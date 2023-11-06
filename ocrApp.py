@@ -296,7 +296,7 @@ class OCRApplication(QtWidgets.QMainWindow):
             "Enter custom pattern (e.g. 'xx-xxxxxx-xx-xx')"
         )
         self.use_txt_checkbox = QtWidgets.QCheckBox(
-            "Process pdf files instead of tif"
+            "Process txt files (if available)"
         )
 
         layout = QtWidgets.QVBoxLayout()
